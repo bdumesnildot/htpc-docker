@@ -82,7 +82,7 @@ services:
     networks:
       - web
     ports:
-      - 9000:9000
+      - 9443:9443
     environment:
       - TZ=${TZ}
     volumes:
