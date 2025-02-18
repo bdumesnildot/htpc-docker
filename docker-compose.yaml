@@ -99,10 +99,10 @@ services:
       - "traefik.http.routers.portainer.tls=true"
       - "traefik.http.routers.portainer.tls.certresolver=myresolver"
 
-  # ----------------------------------------
-  # PLEX
-  # Robust Media Server
-  # ----------------------------------------
+#   # ----------------------------------------
+#   # PLEX
+#   # Robust Media Server
+#   # ----------------------------------------
 #   plex:
 #     container_name: plex
 #     image: plexinc/pms-docker:${PMSTAG}
