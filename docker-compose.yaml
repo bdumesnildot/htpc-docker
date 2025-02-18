@@ -72,69 +72,43 @@ services:
       - "traefik.http.routers.whoami.tls.certresolver=myresolver"
 
   # ----------------------------------------
-  # PORTAINER
-  # Docker Container Management
+  # PLEX
+  # Robust Media Server
   # ----------------------------------------
-  portainer:
-    image: portainer/portainer-ce:2.21.5
-    container_name: portainer
+  plex:
+    container_name: plex
+    image: plexinc/pms-docker:${PMSTAG}
     restart: unless-stopped
-    command: -H unix:///var/run/docker.sock
     networks:
       - web
+    ports:
+      - "32400:32400/tcp"
+      - "8324:8324/tcp"
+      - "32469:32469/tcp"
+      - "1900:1900/udp"
+      - "32410:32410/udp"
+      - "32412:32412/udp"
+      - "32413:32413/udp"
+      - "32414:32414/udp"
     environment:
       - TZ=${TZ}
+      - PLEX_CLAIM=${PMSTOKEN}
+      - ADVERTISE_IP=http://${IP_ADDRESS}:32400/
+    hostname: ${HOSTNAME}
     volumes:
-      - "./portainer:/data"
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./plex:/config"
+      - "./plex/transcode:/transcode"
+      - "${ROOT_DIR}/media/Movies:/data/movies"
+      - "${ROOT_DIR}/media/TVShows:/data/tvshows"
+      - "/etc/localtime:/etc/localtime:ro"
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
-      - "traefik.http.routers.frontend.service=frontend"
-      - "traefik.http.routers.frontend.rule=Host(`portainer.${DOMAIN}`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=9000"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
-
-#   # ----------------------------------------
-#   # PLEX
-#   # Robust Media Server
-#   # ----------------------------------------
-#   plex:
-#     container_name: plex
-#     image: plexinc/pms-docker:${PMSTAG}
-#     restart: unless-stopped
-#     networks:
-#       - web
-#     ports:
-#       - "32400:32400/tcp"
-#       - "8324:8324/tcp"
-#       - "32469:32469/tcp"
-#       - "1900:1900/udp"
-#       - "32410:32410/udp"
-#       - "32412:32412/udp"
-#       - "32413:32413/udp"
-#       - "32414:32414/udp"
-#     environment:
-#       - TZ=${TZ}
-#       - PLEX_CLAIM=${PMSTOKEN}
-#       - ADVERTISE_IP=http://${IP_ADDRESS}:32400/
-#     hostname: ${HOSTNAME}
-#     volumes:
-#       - "./plex:/config"
-#       - "./plex/transcode:/transcode"
-#       - "${ROOT_DIR}/media/Movies:/data/movies"
-#       - "${ROOT_DIR}/media/TVShows:/data/tvshows"
-#       - "/etc/localtime:/etc/localtime:ro"
-#     labels:
-#       - "traefik.enable=true"
-#       - "providers.docker.network=web"
-#       - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
-#       - "traefik.http.services.plex.loadbalancer.server.port=32400"
-#       - "traefik.http.routers.plex.entrypoints=websecure"
-#       - "traefik.http.routers.plex.tls=true"
-#       - "traefik.http.routers.plex.tls.certresolver=myresolver"
+      - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefik.http.routers.plex.entrypoints=websecure"
+      - "traefik.http.routers.plex.tls=true"
+      - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
 # ----------------------------------------
 # General Purpose Container
