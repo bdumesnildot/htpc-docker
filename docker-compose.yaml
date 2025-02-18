@@ -81,6 +81,7 @@ services:
     restart: unless-stopped
     networks:
       - web
+    network_mode: bridge
     ports:
       - "32400:32400/tcp"
       - "8324:8324/tcp"
@@ -90,13 +91,13 @@ services:
       - "32412:32412/udp"
       - "32413:32413/udp"
       - "32414:32414/udp"
+      - "5353:5353/udp"
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
       - VERSION=docker
       - PLEX_CLAIM=${PMSTOKEN}
-    hostname: ${HOSTNAME}
     volumes:
       - "./plex:/config"
       - "./plex/transcode:/transcode"
