@@ -76,8 +76,8 @@ services:
   # Robust Media Server
   # ----------------------------------------
   plex:
+    image: lscr.io/linuxserver/plex:latest
     container_name: plex
-    image: plexinc/pms-docker:${PMSTAG}
     restart: unless-stopped
     networks:
       - web
@@ -92,15 +92,16 @@ services:
       - "32414:32414/udp"
     environment:
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - VERSION=docker
       - PLEX_CLAIM=${PMSTOKEN}
-      - ADVERTISE_IP=http://${IP_ADDRESS}:32400/
     hostname: ${HOSTNAME}
     volumes:
       - "./plex:/config"
       - "./plex/transcode:/transcode"
-      - "${ROOT_DIR}/media/Movies:/data/movies"
-      - "${ROOT_DIR}/media/TVShows:/data/tvshows"
-      - "/etc/localtime:/etc/localtime:ro"
+      - "${MEDIA_PATH}/media/movies:/movies"
+      - "${MEDIA_PATH}/media/series:/tv"
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
