@@ -164,7 +164,7 @@ services:
     volumes:
       - "./sonarr:/config"
       - "${MEDIA_PATH}/media/series:/tv"
-      - "${ROOT}/torrents/Completed:/downloads"
+      - "${MEDIA_PATH}/torrents/Completed:/downloads"
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
