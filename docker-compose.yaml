@@ -76,7 +76,7 @@ services:
   # Docker Container Management
   # ----------------------------------------
   portainer:
-    image: portainer/portainer-ce:2.0.0
+    image: portainer/portainer-ce:2.21.5
     container_name: portainer
     restart: unless-stopped
     command: -H unix:///var/run/docker.sock
@@ -90,11 +90,12 @@ services:
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
-      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-      - "traefik.http.routers.portainer.entrypoints=websecure"
-      - "traefik.http.routers.portainer.tls=true"
-      - "traefik.http.routers.portainer.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.rule=Host(`portainer.${DOMAIN}`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=9000"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
 
 #   # ----------------------------------------
 #   # PLEX
