@@ -138,9 +138,9 @@ services:
 #       - "traefik.http.routers.plex.tls=true"
 #       - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
-  # ----------------------------------------
-  # General Purpose Container
-  # ----------------------------------------
-  networks:
-    web:
-      external: true
+# ----------------------------------------
+# General Purpose Container
+# ----------------------------------------
+networks:
+  internal:
+  web:
