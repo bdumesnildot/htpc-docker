@@ -114,6 +114,5 @@ services:
 # General Purpose Container
 # ----------------------------------------
 networks:
-  internal:
   web:
     external: true
