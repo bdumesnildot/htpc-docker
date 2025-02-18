@@ -4,13 +4,95 @@
 ##
 ## Have docker-compose.yml and .env in the same directory to launch the stack
 
-version: "3"
+version: "3.3"
 
 ######################
 # SERVICES TO LAUNCH #
 ######################
 
 services:
+  # ----------------------------------------
+  # TRAEFIK
+  # Reverse Proxy + SSL Support
+  # ----------------------------------------
+  traefik:
+    image: "traefik:v2.10"
+    container_name: "traefik"
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    environment:
+      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
+      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    labels:
+      - "traefik.enable=true"
+      - "--providers.docker.network=web"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+
+  # ----------------------------------------
+  # WHOAMI
+  # Simple Service for Testing
+  # ----------------------------------------
+  whoami:
+    image: "traefik/whoami"
+    container_name: "whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+
+#   # ----------------------------------------
+#   # PORTAINER
+#   # Docker Container Management
+#   # ----------------------------------------
+#   portainer:
+#     image: portainer/portainer-ce:latest
+#     container_name: portainer
+#     restart: unless-stopped
+#     networks:
+#       - web
+#     expose:
+#       - 9000
+#     environment:
+#       - TZ=${TZ}
+#       - PUID=${PUID}
+#       - PGID=${PGID}
+#     volumes:
+#       - "./portainer:/data"
+#       - "/var/run/docker.sock:/var/run/docker.sock"
+#       - "/etc/localtime:/etc/localtime:ro"
+#     labels:
+#       - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
+#       - "traefik.http.routers.portainer.entrypoints=websecure"
+#       - "traefik.http.routers.portainer.tls=true"
+#       - "traefik.http.routers.portainer.tls.certresolver=myresolver" 
+
 #   # ----------------------------------------
 #   # PLEX
 #   # Robust Media Server
@@ -53,97 +135,3 @@ services:
 #       - "traefik.http.routers.plex.tls=true"
 #       - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
-#   # ----------------------------------------
-#   # PORTAINER
-#   # Docker Container Management
-#   # ----------------------------------------
-#   portainer:
-#     image: portainer/portainer-ce:latest
-#     container_name: portainer
-#     restart: unless-stopped
-#     networks:
-#       - web
-#     expose:
-#       - 9000
-#     environment:
-#       - TZ=${TZ}
-#       - PUID=${PUID}
-#       - PGID=${PGID}
-#     volumes:
-#       - "./portainer:/data"
-#       - "/var/run/docker.sock:/var/run/docker.sock"
-#       - "/etc/localtime:/etc/localtime:ro"
-#     labels:
-#       - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
-#       - "traefik.enable=true"
-#       - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
-#       - "traefik.http.routers.portainer.entrypoints=websecure"
-#       - "traefik.http.routers.portainer.tls=true"
-#       - "traefik.http.routers.portainer.tls.certresolver=myresolver"
-
-  # ----------------------------------------
-  # TRAEFIK
-  # Reverse Proxy + SSL Support
-  # ----------------------------------------
-  traefik:
-    image: "traefik:v3.3"
-    container_name: "traefik"
-    restart: unless-stopped
-    networks:
-      - web
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    environment:
-      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
-    volumes:
-      - "./letsencrypt:/letsencrypt"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
-      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
-      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    labels:
-      - "traefik.enable=true"
-      - "--providers.docker.network=web"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
-      - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.middlewares=auth"
-      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
-      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
-
-  # ----------------------------------------
-  # WHOAMI
-  # Simple Service for Testing
-  # ----------------------------------------
-  whoami:
-    image: "traefik/whoami"
-    container_name: "simple-service"
-    networks:
-      - web
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
-      - "traefik.http.routers.whoami.entrypoints=websecure"
-      - "traefik.http.routers.whoami.tls=true"
-      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
-
-
-########################
-# GLOBAL CONFIGURATION #
-########################
-
-networks:
-  internal:
-  web:
