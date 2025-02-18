@@ -111,6 +111,70 @@ services:
       - "traefik.http.routers.plex.tls=true"
       - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
+  # ----------------------------------------
+  # QBITTORRENT + PIA VPN
+  # Torrent Client with VPN
+  # ----------------------------------------
+  pia-qbittorrent:
+    image: j4ym0/pia-qbittorrent
+    container_name: pia-qbittorrent
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "8888:8888"
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - USER=${PIA_UNAME}
+      - PASSWORD=${PIA_PASS}
+      - REGION=${PIA_REGION}
+      - DNS_SERVERS=${DNS_SERVERS}
+      - PORT_FORWARDING=${PIA_PORT_FORWARDING}
+    volumes:
+      - ./qbittorrent:/config
+      - "${ROOT}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=web"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
+
+  # ----------------------------------------
+  # SONARR
+  # TV Series Management
+  # ----------------------------------------
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - 8989:8989
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - "./sonarr:/config"
+      - "${MEDIA_PATH}/media/series:/tv"
+      - "${ROOT}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=web"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=32400"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls=true"
+      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
+
 # ----------------------------------------
 # General Purpose Container
 # ----------------------------------------

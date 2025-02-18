@@ -5,7 +5,7 @@ It's based on running on an Ubuntu server, but could easily be adapted for other
 It includes the following Services
 
 - [Plex Media Server](https://www.plex.tv/) - for managing media and serving files to Plex Clients
-- [Deluge](https://deluge-torrent.org/) + [Private Internet Access](https://www.privateinternetaccess.com/pages/buy-vpn/toz) or [TorGuard](https://torguard.net/aff.php?aff=4350) - for downloading torrents... "safely"
+- [Qbittorrent-pia](https://github.com/j4ym0/pia-qbittorrent-docker/tree/master) + [Private Internet Access](https://www.privateinternetaccess.com/pages/buy-vpn/toz) - for downloading torrents... "safely"
 - [Sonarr](https://sonarr.tv/) - for TV Series Management
 - [Radarr](https://radarr.video/) - for Movie Management
 - [Jackett](https://github.com/Jackett/Jackett) - for Torrent Tracker feeds
