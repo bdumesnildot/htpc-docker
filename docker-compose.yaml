@@ -127,8 +127,8 @@ services:
       - NET_ADMIN
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
+      - UID=${PUID}
+      - GID=${PGID}
       - USER=${PIA_UNAME}
       - PASSWORD=${PIA_PASS}
       - REGION=${PIA_REGION}
