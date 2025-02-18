@@ -11,75 +11,75 @@ version: "3"
 ######################
 
 services:
-  # ----------------------------------------
-  # PLEX
-  # Robust Media Server
-  # ----------------------------------------
-  plex:
-    container_name: plex
-    image: plexinc/pms-docker:${PMSTAG}
-    restart: unless-stopped
-    networks:
-      - web
-    ports:
-      - "${IP_ADDRESS}:32400:32400/tcp"
-      - "${IP_ADDRESS}:3005:3005/tcp"
-      - "${IP_ADDRESS}:8324:8324/tcp"
-      - "${IP_ADDRESS}:32469:32469/tcp"
-      - "${IP_ADDRESS}:1900:1900/udp"
-      - "${IP_ADDRESS}:32410:32410/udp"
-      - "${IP_ADDRESS}:32412:32412/udp"
-      - "${IP_ADDRESS}:32413:32413/udp"
-      - "${IP_ADDRESS}:32414:32414/udp"
-    environment:
-      - TZ=${TZ}
-      - PLEX_UID=${PUID}
-      - PLEX_GID=${PGID}
-      - PLEX_CLAIM=${PMSTOKEN}
-      - ADVERTISE_IP=http://${IP_ADDRESS}:32400/
-      - ALLOWED_NETWORKS=${CIDR_ADDRESS}
-    hostname: ${HOSTNAME}
-    volumes:
-      - "./plex:/config"
-      - "./plex/transcode:/transcode"
-      - "${ROOT_DIR}/media/Movies:/data/movies"
-      - "${ROOT_DIR}/media/TVShows:/data/tvshows"
-      - "/etc/localtime:/etc/localtime:ro"
-    labels:
-      - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
-      - "traefik.enable=true"
-      - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
-      - "traefik.http.routers.plex.entrypoints=websecure"
-      - "traefik.http.routers.plex.tls=true"
-      - "traefik.http.routers.plex.tls.certresolver=myresolver"
+#   # ----------------------------------------
+#   # PLEX
+#   # Robust Media Server
+#   # ----------------------------------------
+#   plex:
+#     container_name: plex
+#     image: plexinc/pms-docker:${PMSTAG}
+#     restart: unless-stopped
+#     networks:
+#       - web
+#     ports:
+#       - "${IP_ADDRESS}:32400:32400/tcp"
+#       - "${IP_ADDRESS}:3005:3005/tcp"
+#       - "${IP_ADDRESS}:8324:8324/tcp"
+#       - "${IP_ADDRESS}:32469:32469/tcp"
+#       - "${IP_ADDRESS}:1900:1900/udp"
+#       - "${IP_ADDRESS}:32410:32410/udp"
+#       - "${IP_ADDRESS}:32412:32412/udp"
+#       - "${IP_ADDRESS}:32413:32413/udp"
+#       - "${IP_ADDRESS}:32414:32414/udp"
+#     environment:
+#       - TZ=${TZ}
+#       - PLEX_UID=${PUID}
+#       - PLEX_GID=${PGID}
+#       - PLEX_CLAIM=${PMSTOKEN}
+#       - ADVERTISE_IP=http://${IP_ADDRESS}:32400/
+#       - ALLOWED_NETWORKS=${CIDR_ADDRESS}
+#     hostname: ${HOSTNAME}
+#     volumes:
+#       - "./plex:/config"
+#       - "./plex/transcode:/transcode"
+#       - "${ROOT_DIR}/media/Movies:/data/movies"
+#       - "${ROOT_DIR}/media/TVShows:/data/tvshows"
+#       - "/etc/localtime:/etc/localtime:ro"
+#     labels:
+#       - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
+#       - "traefik.http.routers.plex.entrypoints=websecure"
+#       - "traefik.http.routers.plex.tls=true"
+#       - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
-  # ----------------------------------------
-  # PORTAINER
-  # Docker Container Management
-  # ----------------------------------------
-  portainer:
-    image: portainer/portainer:latest
-    container_name: portainer
-    restart: unless-stopped
-    networks:
-      - web
-    expose:
-      - 9000
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-    volumes:
-      - "./portainer:/data"
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "/etc/localtime:/etc/localtime:ro"
-    labels:
-      - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
-      - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
-      - "traefik.http.routers.portainer.entrypoints=websecure"
-      - "traefik.http.routers.portainer.tls=true"
-      - "traefik.http.routers.portainer.tls.certresolver=myresolver"
+#   # ----------------------------------------
+#   # PORTAINER
+#   # Docker Container Management
+#   # ----------------------------------------
+#   portainer:
+#     image: portainer/portainer-ce:latest
+#     container_name: portainer
+#     restart: unless-stopped
+#     networks:
+#       - web
+#     expose:
+#       - 9000
+#     environment:
+#       - TZ=${TZ}
+#       - PUID=${PUID}
+#       - PGID=${PGID}
+#     volumes:
+#       - "./portainer:/data"
+#       - "/var/run/docker.sock:/var/run/docker.sock"
+#       - "/etc/localtime:/etc/localtime:ro"
+#     labels:
+#       - com.centurylinklabs.watchtower.enable=true # container auto update with Watchtower
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
+#       - "traefik.http.routers.portainer.entrypoints=websecure"
+#       - "traefik.http.routers.portainer.tls=true"
+#       - "traefik.http.routers.portainer.tls.certresolver=myresolver"
 
   # ----------------------------------------
   # TRAEFIK
@@ -96,9 +96,6 @@ services:
       - "443:443"
       - "8080:8080"
     environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
       - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     volumes:
       - "./letsencrypt:/letsencrypt"
@@ -117,6 +114,7 @@ services:
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     labels:
       - "traefik.enable=true"
+      - "--providers.docker.network=web"
       - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.service=api@internal"
@@ -125,6 +123,10 @@ services:
       - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
       - "traefik.http.routers.traefik.tls.certresolver=myresolver"
 
+  # ----------------------------------------
+  # WHOAMI
+  # Simple Service for Testing
+  # ----------------------------------------
   whoami:
     image: "traefik/whoami"
     container_name: "simple-service"
@@ -136,6 +138,7 @@ services:
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
       - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+
 
 ########################
 # GLOBAL CONFIGURATION #
