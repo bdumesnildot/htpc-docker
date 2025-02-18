@@ -76,23 +76,22 @@ services:
   # Docker Container Management
   # ----------------------------------------
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ce:2.0.0
     container_name: portainer
     restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
     networks:
       - web
-    ports:
-      - 9443:9443
     environment:
       - TZ=${TZ}
     volumes:
       - "./portainer:/data"
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "/etc/localtime:/etc/localtime:ro"
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
       - "traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls=true"
       - "traefik.http.routers.portainer.tls.certresolver=myresolver"
