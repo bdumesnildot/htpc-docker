@@ -1,7 +1,10 @@
 .env
 
 # DOCKER VOLUMES
+homarr
 letsencrypt
-plex
 qbittorrent
+plex
+prowlarr
+radarr
 sonarr

@@ -72,6 +72,95 @@ services:
       - "traefik.http.routers.whoami.tls.certresolver=myresolver"
 
   # ----------------------------------------
+  # QBITTORRENT + PIA VPN
+  # Torrent Client with VPN
+  # ----------------------------------------
+  pia-qbittorrent:
+    image: j4ym0/pia-qbittorrent
+    container_name: pia-qbittorrent
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "8888:8888"
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - TZ=${TZ}
+      - UID=${PUID}
+      - GID=${PGID}
+      - USER=${PIA_UNAME}
+      - PASSWORD=${PIA_PASS}
+      - REGION=${PIA_REGION}
+      - DNS_SERVERS=${DNS_SERVERS}
+      - PORT_FORWARDING=${PIA_PORT_FORWARDING}
+    volumes:
+      - ./qbittorrent:/config
+      - "${ROOT}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=web"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
+
+  # ----------------------------------------
+  # SONARR
+  # TV Series Management
+  # ----------------------------------------
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - 9696:9696
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - "./prowlarr:/config"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=web"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls=true"
+      - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
+    depends_on:
+      - pia-qbittorrent
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - 8989:8989
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - "./sonarr:/config"
+      - "${MEDIA_PATH}/media/series:/tv"
+      - "${MEDIA_PATH}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=web"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls=true"
+      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
+    depends_on:
+      - prowlarr
+      - pia-qbittorrent
+
+  # ----------------------------------------
   # PLEX
   # Robust Media Server
   # ----------------------------------------
@@ -112,70 +201,31 @@ services:
       - "traefik.http.routers.plex.tls.certresolver=myresolver"
 
   # ----------------------------------------
-  # QBITTORRENT + PIA VPN
-  # Torrent Client with VPN
+  # HOMARR
+  # Dashboard
   # ----------------------------------------
-  pia-qbittorrent:
-    image: j4ym0/pia-qbittorrent
-    container_name: pia-qbittorrent
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homarr
     restart: unless-stopped
     networks:
       - web
     ports:
-      - "8888:8888"
-    cap_add:
-      - NET_ADMIN
+      - '7575:7575'
     environment:
-      - TZ=${TZ}
-      - UID=${PUID}
-      - GID=${PGID}
-      - USER=${PIA_UNAME}
-      - PASSWORD=${PIA_PASS}
-      - REGION=${PIA_REGION}
-      - DNS_SERVERS=${DNS_SERVERS}
-      - PORT_FORWARDING=${PIA_PORT_FORWARDING}
+      - SECRET_ENCRYPTION_KEY=${ENCRYPTION_SECRET_KEY}
     volumes:
-      - ./qbittorrent:/config
-      - "${ROOT}/torrents/Completed:/downloads"
+      - "./homarr/appdata:/appdata"
+      - "/var/run/docker.sock:/var/run/docker.sock"
     labels:
       - "traefik.enable=true"
       - "providers.docker.network=web"
-      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
-      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
-      - "traefik.http.routers.qbittorrent.tls=true"
-      - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
+      - "traefik.http.routers.homarr.rule=Host(`tardis.${DOMAIN}`)"
+      - "traefik.http.routers.homarr.entrypoints=websecure"
+      - "traefik.http.routers.homarr.tls=true"
+      - "traefik.http.routers.homarr.tls.certresolver=myresolver"
 
-  # ----------------------------------------
-  # SONARR
-  # TV Series Management
-  # ----------------------------------------
-  sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    container_name: sonarr
-    restart: unless-stopped
-    networks:
-      - web
-    ports:
-      - 8989:8989
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-    volumes:
-      - "./sonarr:/config"
-      - "${MEDIA_PATH}/media/series:/tv"
-      - "${MEDIA_PATH}/torrents/Completed:/downloads"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=web"
-      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
-      - "traefik.http.routers.sonarr.entrypoints=websecure"
-      - "traefik.http.routers.sonarr.tls=true"
-      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
 
-# ----------------------------------------
-# General Purpose Container
-# ----------------------------------------
 networks:
   web:
     external: true
