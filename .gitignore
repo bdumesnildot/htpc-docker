@@ -1,1 +1,7 @@
 .env
+
+# DOCKER VOLUMES
+letsencrypt
+plex
+qbittorrent
+sonarr
