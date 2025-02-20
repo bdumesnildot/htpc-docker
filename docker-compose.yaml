@@ -81,9 +81,9 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.middlewares=auth"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.api-local.rule=Host(`localhost`)"
-      - "traefik.http.routers.api-local.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=auth"
+      # - "traefik.http.routers.api-local.rule=Host(`localhost`)"
+      # - "traefik.http.routers.api-local.service=api@internal"
+      # - "traefik.http.routers.traefik.middlewares=auth"
 
 
   # ----------------------------------------
@@ -141,8 +141,7 @@ services:
       - "traefik.http.routers.qbittorrent.tls=true"
       - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.qbittorrent-local.rule=Host(`localhost`)"
-      - "traefik.http.services.qbittorrent-local.loadbalancer.server.port=8888"
+      # - "traefik.http.routers.qbittorrent-local.rule=Host(`localhost`)"
 
 
   # ----------------------------------------
@@ -172,8 +171,7 @@ services:
       - "traefik.http.routers.prowlarr.tls=true"
       - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.prowlarr-local.rule=Host(`localhost`)"
-      - "traefik.http.services.prowlarr-local.loadbalancer.server.port=9696"
+      # - "traefik.http.routers.prowlarr-local.rule=Host(`localhost`)"
     depends_on:
       - pia-qbittorrent
 
@@ -207,8 +205,7 @@ services:
       - "traefik.http.routers.sonarr.tls=true"
       - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.sonarr-local.rule=Host(`localhost`)"
-      - "traefik.http.services.sonarr-local.loadbalancer.server.port=8989"
+      # - "traefik.http.routers.sonarr-local.rule=Host(`localhost`)"
     depends_on:
       - prowlarr
       - pia-qbittorrent
@@ -243,8 +240,7 @@ services:
       - "traefik.http.routers.radarr.tls=true"
       - "traefik.http.routers.radarr.tls.certresolver=myresolver"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.radarr-local.rule=Host(`localhost`)"
-      - "traefik.http.services.radarr-local.loadbalancer.server.port=7878"
+      # - "traefik.http.routers.radarr-local.rule=Host(`localhost`)"
     depends_on:
       - prowlarr
       - pia-qbittorrent
@@ -291,8 +287,7 @@ services:
       - "traefik.http.routers.plex.tls=true"
       - "traefik.http.routers.plex.tls.certresolver=myresolver"
       ## -- Local Access (IP/Hostname)
-      - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
-      # - "traefik.http.services.plex-local.loadbalancer.server.port=32400"
+      # - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
 
 
   # ----------------------------------------
@@ -322,6 +317,7 @@ services:
       - "traefik.http.routers.homarr.entrypoints=websecure"
       - "traefik.http.routers.homarr.tls=true"
       - "traefik.http.routers.homarr.tls.certresolver=myresolver"
+
 
 
 networks:
