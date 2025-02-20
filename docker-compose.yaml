@@ -12,6 +12,28 @@ version: "3.3"
 
 services:
   # ----------------------------------------
+  # DOCKER SOCKET PROXY
+  # docker socket isolation
+  # ----------------------------------------
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    container_name: socket-proxy
+    read_only: true
+    restart: unless-stopped
+    networks:
+      - htpc-socket-proxy
+    ports:
+      - 2375:2375
+    environment:
+      - CONTAINERS=1
+      - POST=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    tmpfs:
+      - /run
+
+
+  # ----------------------------------------
   # TRAEFIK
   # Reverse Proxy + SSL Support
   # ----------------------------------------
@@ -20,38 +42,49 @@ services:
     container_name: "traefik"
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
+      - htpc-socket-proxy
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"
     environment:
+      - TRAEFIK_PROVIDERS_DOCKER_ENDPOINT=socket-proxy
       - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     volumes:
       - "./letsencrypt:/letsencrypt"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     command:
       - "--log.level=DEBUG"
-      - "--api.insecure=true"
+      - "--api.insecure=true" # ❗️ disable for production
+      ## -- providers
       - "--providers.docker=true"
+      - "--providers.docker.endpoint=tcp://socket-proxy:2375"
       - "--providers.docker.exposedbydefault=false"
+      ## -- entry points
       - "--entryPoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
+      ## -- tls certificates 
       - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
       - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
-      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
       - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.myresolver.acme.storage=letsencrypt/acme.json"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
-      - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.middlewares=auth"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Middelware
       - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
+      ## -- Public Access (Domain) 
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.api-local.rule=Host(`localhost`)"
+      - "traefik.http.routers.api-local.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+
 
   # ----------------------------------------
   # WHOAMI
@@ -62,14 +95,16 @@ services:
     container_name: "whoami"
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
       - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+
 
   # ----------------------------------------
   # QBITTORRENT + PIA VPN
@@ -80,7 +115,7 @@ services:
     container_name: pia-qbittorrent
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
     ports:
       - "8888:8888"
     cap_add:
@@ -96,25 +131,30 @@ services:
       - PORT_FORWARDING=${PIA_PORT_FORWARDING}
     volumes:
       - ./qbittorrent:/config
-      - "${ROOT}/torrents/Completed:/downloads"
+      - "${MEDIA_PATH}/torrents/Completed:/downloads"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
       - "traefik.http.routers.qbittorrent.entrypoints=websecure"
       - "traefik.http.routers.qbittorrent.tls=true"
       - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.qbittorrent-local.rule=Host(`localhost`)"
+      - "traefik.http.services.qbittorrent-local.loadbalancer.server.port=8888"
+
 
   # ----------------------------------------
-  # SONARR
-  # TV Series Management
+  # PROWLARR
+  # Index management
   # ----------------------------------------
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
     ports:
       - 9696:9696
     environment:
@@ -125,20 +165,29 @@ services:
       - "./prowlarr:/config"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
       - "traefik.http.routers.prowlarr.entrypoints=websecure"
       - "traefik.http.routers.prowlarr.tls=true"
       - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.prowlarr-local.rule=Host(`localhost`)"
+      - "traefik.http.services.prowlarr-local.loadbalancer.server.port=9696"
     depends_on:
       - pia-qbittorrent
 
+
+  # ----------------------------------------
+  # SONARR
+  # TV Series Management
+  # ----------------------------------------
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
     ports:
       - 8989:8989
     environment:
@@ -151,14 +200,19 @@ services:
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
       - "traefik.http.routers.sonarr.entrypoints=websecure"
       - "traefik.http.routers.sonarr.tls=true"
       - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.sonarr-local.rule=Host(`localhost`)"
+      - "traefik.http.services.sonarr-local.loadbalancer.server.port=8989"
     depends_on:
       - prowlarr
       - pia-qbittorrent
+
 
   # ----------------------------------------
   # PLEX
@@ -169,7 +223,7 @@ services:
     container_name: plex
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
     ports:
       - "32400:32400/tcp"
       - "8324:8324/tcp"
@@ -193,12 +247,18 @@ services:
       - "${MEDIA_PATH}/media/series:/tv"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
       - "traefik.http.routers.plex.entrypoints=websecure"
       - "traefik.http.routers.plex.tls=true"
       - "traefik.http.routers.plex.tls.certresolver=myresolver"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
+      # - "traefik.http.services.plex-local.loadbalancer.server.port=32400"
+
+
 
   # ----------------------------------------
   # HOMARR
@@ -209,17 +269,20 @@ services:
     container_name: homarr
     restart: unless-stopped
     networks:
-      - web
+      - htpc-external-web
+      - htpc-socket-proxy
     ports:
       - '7575:7575'
     environment:
       - SECRET_ENCRYPTION_KEY=${ENCRYPTION_SECRET_KEY}
+      - DOCKER_HOSTNAMES=socket-proxy
+      - DOCKER_PORTS=2375
     volumes:
       - "./homarr/appdata:/appdata"
-      - "/var/run/docker.sock:/var/run/docker.sock"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=web"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
       - "traefik.http.routers.homarr.rule=Host(`tardis.${DOMAIN}`)"
       - "traefik.http.routers.homarr.entrypoints=websecure"
       - "traefik.http.routers.homarr.tls=true"
@@ -227,5 +290,6 @@ services:
 
 
 networks:
-  web:
+  htpc-socket-proxy:
+  htpc-external-web:
     external: true
