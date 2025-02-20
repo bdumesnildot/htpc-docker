@@ -215,6 +215,42 @@ services:
 
 
   # ----------------------------------------
+  # RADARR
+  # Movies Management
+  # ----------------------------------------
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    networks:
+      - htpc-external-web
+    ports:
+      - 7878:7878
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - "./radarr:/config"
+      - "${MEDIA_PATH}/media/movies:/movies"
+      - "${MEDIA_PATH}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "providers.docker.network=htpc-external-web"
+      ## -- Public Access (Domain)
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls=true"
+      - "traefik.http.routers.radarr.tls.certresolver=myresolver"
+      ## -- Local Access (IP/Hostname)
+      - "traefik.http.routers.radarr-local.rule=Host(`localhost`)"
+      - "traefik.http.services.radarr-local.loadbalancer.server.port=7878"
+    depends_on:
+      - prowlarr
+      - pia-qbittorrent
+
+
+  # ----------------------------------------
   # PLEX
   # Robust Media Server
   # ----------------------------------------
@@ -257,7 +293,6 @@ services:
       ## -- Local Access (IP/Hostname)
       - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
       # - "traefik.http.services.plex-local.loadbalancer.server.port=32400"
-
 
 
   # ----------------------------------------
