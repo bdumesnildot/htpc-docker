@@ -1,8 +1,10 @@
 .env
 
 # DOCKER VOLUMES
+gluetun
 homarr
 letsencrypt
+nzbget
 qbittorrent
 plex
 prowlarr

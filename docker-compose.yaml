@@ -11,27 +11,6 @@ version: "3.3"
 ######################
 
 services:
-  # ----------------------------------------
-  # DOCKER SOCKET PROXY
-  # docker socket isolation
-  # ----------------------------------------
-  socket-proxy:
-    image: lscr.io/linuxserver/socket-proxy:latest
-    container_name: socket-proxy
-    read_only: true
-    restart: unless-stopped
-    networks:
-      - htpc-socket-proxy
-    ports:
-      - 2375:2375
-    environment:
-      - CONTAINERS=1
-      - POST=1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    tmpfs:
-      - /run
-
 
   # ----------------------------------------
   # TRAEFIK
@@ -40,25 +19,23 @@ services:
   traefik:
     image: "traefik:v2.10"
     container_name: "traefik"
-    restart: unless-stopped
+    environment:
+      - TRAEFIK_PROVIDERS_DOCKER_ENDPOINT=socket-proxy
+      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     networks:
-      - htpc-external-web
-      - htpc-socket-proxy
+      - traefik_proxy
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"
-    environment:
-      - TRAEFIK_PROVIDERS_DOCKER_ENDPOINT=socket-proxy
-      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     volumes:
       - "./letsencrypt:/letsencrypt"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - "--log.level=DEBUG"
       - "--api.insecure=true" # ❗️ disable for production
       ## -- providers
       - "--providers.docker=true"
-      - "--providers.docker.endpoint=tcp://socket-proxy:2375"
       - "--providers.docker.exposedbydefault=false"
       ## -- entry points
       - "--entryPoints.web.address=:80"
@@ -70,7 +47,7 @@ services:
       - "--certificatesresolvers.myresolver.acme.storage=letsencrypt/acme.json"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
+      # - "providers.docker.network=traefik_proxy"
       ## -- Middelware
       - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
       ## -- Public Access (Domain) 
@@ -84,64 +61,112 @@ services:
       # - "traefik.http.routers.api-local.rule=Host(`localhost`)"
       # - "traefik.http.routers.api-local.service=api@internal"
       # - "traefik.http.routers.traefik.middlewares=auth"
+    restart: always
 
 
   # ----------------------------------------
-  # WHOAMI
-  # Simple Service for Testing
+  # GLUETUN
+  # Vpn client
   # ----------------------------------------
-  whoami:
-    image: "traefik/whoami"
-    container_name: "whoami"
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
-      - "traefik.http.routers.whoami.entrypoints=websecure"
-      - "traefik.http.routers.whoami.tls=true"
-      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
-
-
-  # ----------------------------------------
-  # QBITTORRENT + PIA VPN
-  # Torrent Client with VPN
-  # ----------------------------------------
-  pia-qbittorrent:
-    image: j4ym0/pia-qbittorrent
-    container_name: pia-qbittorrent
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-    ports:
-      - "8888:8888"
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
     cap_add:
       - NET_ADMIN
     environment:
       - TZ=${TZ}
-      - UID=${PUID}
-      - GID=${PGID}
-      - USER=${PIA_UNAME}
-      - PASSWORD=${PIA_PASS}
-      - REGION=${PIA_REGION}
-      - DNS_SERVERS=${DNS_SERVERS}
-      - PORT_FORWARDING=${PIA_PORT_FORWARDING}
+      - VPN_SERVICE_PROVIDER=${VPN_PROVIDER}
+      - OPENVPN_USER=${VPN_USER}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD}
+      - SERVER_REGIONS=${VPN_REGIONS}
+      - DOT=on
+      - DOT_PROVIDERS=cloudflare
+    networks:
+      - traefik_proxy
+    ports:
+      - 3011:3011 # whoamivpn
+      - 8888:8888 # qbittorrent
+      - 6789:6789 # nzbget
+      - 9696:9696 # prowlarr
+      - 8989:8989 # sonarr
+      - 7878:7878 # radarr
+    volumes:
+      - "./gluetun:/gluetun"
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_proxy"
+      # -- qbittorrent
+      - "traefik.http.routers.qbittorrent.service=qbittorrent"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8888"
+      # -- nzbget
+      - "traefik.http.routers.nzbget.service=nzbget"
+      - "traefik.http.routers.nzbget.rule=Host(`nzbget.${DOMAIN}`)"
+      - "traefik.http.routers.nzbget.entrypoints=websecure"
+      - "traefik.http.routers.nzbget.tls.certresolver=myresolver"
+      - "traefik.http.services.nzbget.loadbalancer.server.port=6789"
+      # -- prowlarr
+      - "traefik.http.routers.prowlarr.service=prowlarr"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+      # -- sonarr
+      - "traefik.http.routers.sonarr.service=sonarr"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      # -- radarr
+      - "traefik.http.routers.radarr.service=radarr"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls.certresolver=myresolver"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+    restart: unless-stopped
+
+
+  # ----------------------------------------
+  # QBITTORRENT
+  # Torrent Client
+  # ----------------------------------------
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PUID}
+      - WEBUI_PORT=8888
+    network_mode: 'service:gluetun'
     volumes:
       - ./qbittorrent:/config
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
-      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
-      - "traefik.http.routers.qbittorrent.tls=true"
-      - "traefik.http.routers.qbittorrent.tls.certresolver=myresolver"
-      ## -- Local Access (IP/Hostname)
-      # - "traefik.http.routers.qbittorrent-local.rule=Host(`localhost`)"
+    restart: unless-stopped
+
+
+  # ----------------------------------------
+  # NZBGET
+  # Usenet client
+  # ----------------------------------------
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    container_name: nzbget
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PUID}
+      - NZBGET_USER=${NZBGET_USER}
+      - NZBGET_PASS=${NZBGET_PASS}
+    network_mode: 'service:gluetun'
+    volumes:
+      - "./nzbget:/config"
+      - "${MEDIA_PATH}/torrents/Completed:/downloads/completed"
+    restart: unless-stopped
 
 
   # ----------------------------------------
@@ -151,29 +176,14 @@ services:
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-    ports:
-      - 9696:9696
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+    network_mode: 'service:gluetun'
     volumes:
-      - "./prowlarr:/config"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
-      - "traefik.http.routers.prowlarr.entrypoints=websecure"
-      - "traefik.http.routers.prowlarr.tls=true"
-      - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
-      ## -- Local Access (IP/Hostname)
-      # - "traefik.http.routers.prowlarr-local.rule=Host(`localhost`)"
-    depends_on:
-      - pia-qbittorrent
+      - "./prowlarr:/config"      
+    restart: unless-stopped
 
 
   # ----------------------------------------
@@ -183,32 +193,16 @@ services:
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-    ports:
-      - 8989:8989
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+    network_mode: 'service:gluetun'
     volumes:
       - "./sonarr:/config"
       - "${MEDIA_PATH}/media/series:/tv"
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
-      - "traefik.http.routers.sonarr.entrypoints=websecure"
-      - "traefik.http.routers.sonarr.tls=true"
-      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
-      ## -- Local Access (IP/Hostname)
-      # - "traefik.http.routers.sonarr-local.rule=Host(`localhost`)"
-    depends_on:
-      - prowlarr
-      - pia-qbittorrent
+    restart: unless-stopped
 
 
   # ----------------------------------------
@@ -218,32 +212,16 @@ services:
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-    ports:
-      - 7878:7878
     environment:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
+    network_mode: 'service:gluetun'
     volumes:
       - "./radarr:/config"
       - "${MEDIA_PATH}/media/movies:/movies"
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
-      - "traefik.http.routers.radarr.entrypoints=websecure"
-      - "traefik.http.routers.radarr.tls=true"
-      - "traefik.http.routers.radarr.tls.certresolver=myresolver"
-      ## -- Local Access (IP/Hostname)
-      # - "traefik.http.routers.radarr-local.rule=Host(`localhost`)"
-    depends_on:
-      - prowlarr
-      - pia-qbittorrent
+    restart: unless-stopped
 
 
   # ----------------------------------------
@@ -255,7 +233,7 @@ services:
     container_name: plex
     restart: unless-stopped
     networks:
-      - htpc-external-web
+      - traefik_proxy
     ports:
       - "32400:32400/tcp"
       - "8324:8324/tcp"
@@ -279,7 +257,7 @@ services:
       - "${MEDIA_PATH}/media/series:/tv"
     labels:
       - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
+      - "providers.docker.network=traefik_proxy"
       ## -- Public Access (Domain)
       - "traefik.http.routers.plex.rule=Host(`plex.${DOMAIN}`)"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
@@ -290,37 +268,37 @@ services:
       # - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
 
 
-  # ----------------------------------------
-  # HOMARR
-  # Dashboard
-  # ----------------------------------------
-  homarr:
-    image: ghcr.io/homarr-labs/homarr:latest
-    container_name: homarr
-    restart: unless-stopped
-    networks:
-      - htpc-external-web
-      - htpc-socket-proxy
-    ports:
-      - '7575:7575'
-    environment:
-      - SECRET_ENCRYPTION_KEY=${ENCRYPTION_SECRET_KEY}
-      - DOCKER_HOSTNAMES=socket-proxy
-      - DOCKER_PORTS=2375
-    volumes:
-      - "./homarr/appdata:/appdata"
-    labels:
-      - "traefik.enable=true"
-      - "providers.docker.network=htpc-external-web"
-      ## -- Public Access (Domain)
-      - "traefik.http.routers.homarr.rule=Host(`tardis.${DOMAIN}`)"
-      - "traefik.http.routers.homarr.entrypoints=websecure"
-      - "traefik.http.routers.homarr.tls=true"
-      - "traefik.http.routers.homarr.tls.certresolver=myresolver"
-
+  # # ----------------------------------------
+  # # HOMARR
+  # # Dashboard
+  # # ----------------------------------------
+  # homarr:
+  #   image: ghcr.io/homarr-labs/homarr:latest
+  #   container_name: homarr
+  #   restart: unless-stopped
+  #   networks:
+  #     - traefik_proxy
+  #   ports:
+  #     - '7575:7575'
+  #   environment:
+  #     - SECRET_ENCRYPTION_KEY=${HOMARR_ENCRYPTION_SECRET_KEY}
+  #     - DOCKER_HOSTNAMES=socket-proxy
+  #     - DOCKER_PORTS=2375
+  #   volumes:
+  #     - "./homarr/appdata:/appdata"
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "providers.docker.network=traefik_proxy"
+  #     ## -- Public Access (Domain)
+  #     - "traefik.http.routers.homarr.rule=Host(`tardis.${DOMAIN}`)"
+  #     - "traefik.http.routers.homarr.entrypoints=websecure"
+  #     - "traefik.http.routers.homarr.tls=true"
+  #     - "traefik.http.routers.homarr.tls.certresolver=myresolver"
 
 
 networks:
-  htpc-socket-proxy:
-  htpc-external-web:
+  traefik_proxy:
     external: true
+
+volumes:
+  gluetun:
