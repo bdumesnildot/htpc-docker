@@ -84,12 +84,8 @@ services:
     networks:
       - traefik_proxy
     ports:
-      - 3011:3011 # whoamivpn
       - 8888:8888 # qbittorrent
       - 6789:6789 # nzbget
-      - 9696:9696 # prowlarr
-      - 8989:8989 # sonarr
-      - 7878:7878 # radarr
     volumes:
       - "./gluetun:/gluetun"
     devices:
@@ -109,24 +105,6 @@ services:
       - "traefik.http.routers.nzbget.entrypoints=websecure"
       - "traefik.http.routers.nzbget.tls.certresolver=myresolver"
       - "traefik.http.services.nzbget.loadbalancer.server.port=6789"
-      # -- prowlarr
-      - "traefik.http.routers.prowlarr.service=prowlarr"
-      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
-      - "traefik.http.routers.prowlarr.entrypoints=websecure"
-      - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
-      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
-      # -- sonarr
-      - "traefik.http.routers.sonarr.service=sonarr"
-      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
-      - "traefik.http.routers.sonarr.entrypoints=websecure"
-      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
-      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
-      # -- radarr
-      - "traefik.http.routers.radarr.service=radarr"
-      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
-      - "traefik.http.routers.radarr.entrypoints=websecure"
-      - "traefik.http.routers.radarr.tls.certresolver=myresolver"
-      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
     restart: unless-stopped
 
 
@@ -142,7 +120,7 @@ services:
       - PUID=${PUID}
       - PGID=${PUID}
       - WEBUI_PORT=8888
-    network_mode: 'service:gluetun'
+    network_mode: 'service:gluetun' # see gluetun for traefik routing
     volumes:
       - ./qbittorrent:/config
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
@@ -162,7 +140,7 @@ services:
       - PGID=${PUID}
       - NZBGET_USER=${NZBGET_USER}
       - NZBGET_PASS=${NZBGET_PASS}
-    network_mode: 'service:gluetun'
+    network_mode: 'service:gluetun' # see gluetun for traefik routing
     volumes:
       - "./nzbget:/config"
       - "${MEDIA_PATH}/torrents/Completed:/downloads/completed"
@@ -180,9 +158,17 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-    network_mode: 'service:gluetun'
+    networks:
+      - traefik_proxy
+    ports:
+      - 9696:9696
     volumes:
-      - "./prowlarr:/config"      
+      - "./prowlarr:/config"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls.certresolver=myresolver"
     restart: unless-stopped
 
 
@@ -197,11 +183,19 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-    network_mode: 'service:gluetun'
+    networks:
+      - traefik_proxy
+    ports:
+      - 8989:8989
     volumes:
       - "./sonarr:/config"
       - "${MEDIA_PATH}/media/series:/tv"
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls.certresolver=myresolver"
     restart: unless-stopped
 
 
@@ -216,11 +210,19 @@ services:
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-    network_mode: 'service:gluetun'
+    networks:
+      - traefik_proxy
+    ports:
+      - 7878:7878
     volumes:
       - "./radarr:/config"
       - "${MEDIA_PATH}/media/movies:/movies"
       - "${MEDIA_PATH}/torrents/Completed:/downloads"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls.certresolver=myresolver"
     restart: unless-stopped
 
 
