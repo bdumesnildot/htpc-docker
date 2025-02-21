@@ -268,33 +268,6 @@ services:
       # - "traefik.http.routers.plex-local.rule=Host(`localhost`)"
 
 
-  # # ----------------------------------------
-  # # HOMARR
-  # # Dashboard
-  # # ----------------------------------------
-  # homarr:
-  #   image: ghcr.io/homarr-labs/homarr:latest
-  #   container_name: homarr
-  #   restart: unless-stopped
-  #   networks:
-  #     - traefik_proxy
-  #   ports:
-  #     - '7575:7575'
-  #   environment:
-  #     - SECRET_ENCRYPTION_KEY=${HOMARR_ENCRYPTION_SECRET_KEY}
-  #     - DOCKER_HOSTNAMES=socket-proxy
-  #     - DOCKER_PORTS=2375
-  #   volumes:
-  #     - "./homarr/appdata:/appdata"
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "providers.docker.network=traefik_proxy"
-  #     ## -- Public Access (Domain)
-  #     - "traefik.http.routers.homarr.rule=Host(`tardis.${DOMAIN}`)"
-  #     - "traefik.http.routers.homarr.entrypoints=websecure"
-  #     - "traefik.http.routers.homarr.tls=true"
-  #     - "traefik.http.routers.homarr.tls.certresolver=myresolver"
-
 
 networks:
   traefik_proxy:
